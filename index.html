@@ -21,12 +21,12 @@ body{font-family:var(--fb);background:var(--black);color:var(--white);min-height
 
 /* LOGIN */
 #login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;position:relative;overflow:hidden}
-#login-screen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(79,126,255,.12),transparent)}
-.login-logo{margin-bottom:2.5rem;text-align:center}
+#login-screen::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 50% at 50% -10%,rgba(79,126,255,.12),transparent);pointer-events:none}
+.login-logo{margin-bottom:2.5rem;text-align:center;position:relative;z-index:1}
 .logo-wmark{font-family:var(--fs);font-weight:800;font-size:1.5rem;letter-spacing:.3em;text-transform:uppercase;color:var(--white)}
 .logo-sub{display:block;font-family:var(--fb);font-weight:300;font-size:.55rem;letter-spacing:.28em;text-transform:uppercase;color:var(--w30);margin-top:.25rem}
 .logo-dot{width:5px;height:5px;border-radius:50%;background:var(--blue);display:inline-block;margin-left:.5rem;vertical-align:middle}
-.login-card{background:var(--black-3);border:1px solid var(--bd2);border-radius:var(--radius);padding:2rem;width:100%;max-width:340px}
+.login-card{background:var(--black-3);border:1px solid var(--bd2);border-radius:var(--radius);padding:2rem;width:100%;max-width:340px;position:relative;z-index:1}
 .login-title{font-family:var(--fs);font-size:1.1rem;font-weight:600;margin-bottom:.25rem}
 .login-sub-text{font-size:.75rem;color:var(--w30);font-weight:300;margin-bottom:1.5rem}
 .field-wrap{margin-bottom:1rem}
@@ -230,7 +230,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   </div>
   <div class="login-card">
     <div class="login-title">Acesse sua conta</div>
-    <div class="login-sub-text">Painel exclusivo para parceiros e admin</div>
+    <div class="login-sub-text">Painel exclusivo para parceiros</div>
     <div class="field-wrap">
       <label class="field-label" for="login-user">Usuário</label>
       <input class="field-input" type="text" id="login-user" placeholder="seu usuário" autocomplete="username">
