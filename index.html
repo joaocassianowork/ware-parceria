@@ -183,6 +183,23 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .toast{position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%) translateY(6px);background:var(--black-3);border:1px solid var(--bd2);color:var(--white);padding:.625rem 1.25rem;border-radius:100px;font-size:.78rem;font-weight:500;opacity:0;transition:all .25s;pointer-events:none;z-index:999;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* PULSE ANIMATION */
+@keyframes pill-pulse{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
+.pill-pulse{animation:pill-pulse .3s ease}
+
+/* PROGRESS BAR */
+.progress-wrap{background:var(--bd);border-radius:3px;height:6px;overflow:hidden;margin-top:.5rem}
+.progress-bar{height:100%;background:var(--blue);border-radius:3px;transition:width .5s ease}
+
+/* URGENT FILTER BTN */
+.btn-urgent{background:rgba(239,68,68,.12);color:#FC8181;border:1px solid rgba(239,68,68,.25);border-radius:100px;padding:.45rem 1rem;font-size:.75rem;font-weight:600;cursor:pointer;font-family:var(--fb);transition:all .18s;white-space:nowrap}
+.btn-urgent.active{background:rgba(239,68,68,.25);border-color:rgba(239,68,68,.5)}
+.btn-urgent:hover{background:rgba(239,68,68,.2)}
+
+/* PAYMENT HISTORY */
+.payment-row{display:flex;align-items:center;justify-content:space-between;padding:.625rem 0;border-bottom:1px solid var(--bd);font-size:.78rem}
+.payment-row:last-child{border-bottom:none}
+
 /* MOBILE */
 @media(max-width:640px){
   .metrics-grid{grid-template-columns:repeat(2,1fr)}
@@ -215,11 +232,11 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="login-title">Acesse sua conta</div>
     <div class="login-sub-text">Painel exclusivo para parceiros e admin</div>
     <div class="field-wrap">
-      <label class="field-label">Usuário</label>
+      <label class="field-label" for="login-user">Usuário</label>
       <input class="field-input" type="text" id="login-user" placeholder="seu usuário" autocomplete="username">
     </div>
     <div class="field-wrap">
-      <label class="field-label">Senha</label>
+      <label class="field-label" for="login-pw">Senha</label>
       <input class="field-input" type="password" id="login-pw" placeholder="••••••••" autocomplete="current-password">
     </div>
     <button class="btn-primary" onclick="doLogin()">Entrar</button>
@@ -293,6 +310,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <option value="90">Últimos 90 dias</option>
           </select>
           <button class="btn-clear" onclick="clearFilters()">Limpar</button>
+          <button class="btn-urgent" id="btn-urgent" onclick="toggleUrgent()">🔥 Urgentes</button>
         </div>
         <div class="table-wrap">
           <table>
@@ -348,6 +366,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
         <div class="metric-card highlight"><div class="metric-label">Fechados</div><div class="metric-val" style="color:var(--blue)" id="pv-closed">—</div></div>
         <div class="metric-card"><div class="metric-label">Comissão gerada</div><div class="metric-val" style="font-size:1.25rem" id="pv-comm">—</div></div>
       </div>
+      <div class="card" id="pv-goal-card" style="margin-bottom:1rem;display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.375rem">
+          <div style="font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--w30)">Meta do mês</div>
+          <div style="font-size:.72rem;font-weight:600;color:var(--white)" id="pv-goal-text"></div>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar" id="pv-goal-bar" style="width:0%"></div></div>
+        <div style="font-size:.68rem;color:var(--w30);margin-top:.375rem" id="pv-goal-sub"></div>
+      </div>
       <div class="link-card">
         <div class="link-label">Seu link de indicação</div>
         <div style="font-size:.72rem;color:var(--w30);font-weight:300;margin-bottom:.625rem">Compartilhe esse link — cada lead que preencher aparece aqui automaticamente.</div>
@@ -355,6 +381,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <div class="link-url" id="pv-link"></div>
           <button class="btn-copy" id="pv-copy-btn" onclick="copyPartnerLink()">Copiar</button>
         </div>
+      </div>
+      <div class="section-label">Histórico de comissões</div>
+      <div class="card" id="pv-payments-card" style="margin-bottom:1rem">
+        <div id="pv-payments-list"><div style="text-align:center;padding:1rem;color:var(--w30);font-size:.78rem">Nenhuma comissão registrada ainda.</div></div>
       </div>
       <div class="section-label">Seus leads</div>
       <div id="partner-leads-list"></div>
@@ -583,6 +613,10 @@ function getFiltered(){
       const days=daysSince(l.date||l.created_at);
       if(days>fPeriod)return false;
     }
+    if(urgentMode){
+      var q=(l.quando||'').toLowerCase();
+      if(!(q.indexOf('agora')>-1||q.indexOf('pronto')>-1)||l.status===3)return false;
+    }
     return true;
   });
 }
@@ -642,7 +676,21 @@ async function advStatus(id){
   const l=leads.find(function(x){return x.id===id;});
   if(!l)return;
   const next=l.status>=3?3:l.status+1;
-  try{await sbPatch('leads?id=eq.'+id,{status:next});await loadAll();renderAll();}
+  try{
+    await sbPatch('leads?id=eq.'+id,{status:next});
+    await loadAll();renderAll();
+    // Pulse animation on updated pill
+    setTimeout(function(){
+      var pills=document.querySelectorAll('.status-pill');
+      pills.forEach(function(p){
+        if(p.closest('tr')&&p.closest('tr').innerHTML.indexOf('data-id="'+id+'"')>-1){
+          p.classList.add('pill-pulse');
+          setTimeout(function(){p.classList.remove('pill-pulse');},400);
+        }
+      });
+    },50);
+    toast(next===3?'✅ Lead fechado!':'Status atualizado!');
+  }
   catch(e){toast('Erro ao atualizar.');}
 }
 
@@ -848,6 +896,37 @@ function renderPartnerView(p){
   document.getElementById('pv-total').textContent=myLeads.length;
   document.getElementById('pv-closed').textContent=closed;
   document.getElementById('pv-comm').textContent=fmtBRL(totalComm);
+  // Goal progress bar
+  const goal=Number(p.monthly_goal)||5;
+  const now=new Date();
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const thisMonthLeads=myLeads.filter(function(l){return new Date(l.created_at||l.date)>=monthStart;}).length;
+  const pct2=Math.min(Math.round((thisMonthLeads/goal)*100),100);
+  const goalCard=document.getElementById('pv-goal-card');
+  if(goalCard){
+    goalCard.style.display='block';
+    document.getElementById('pv-goal-text').textContent=thisMonthLeads+' de '+goal;
+    document.getElementById('pv-goal-bar').style.width=pct2+'%';
+    document.getElementById('pv-goal-sub').textContent=pct2>=100?'🎉 Meta batida este mês!':'Faltam '+(goal-thisMonthLeads)+' lead'+(goal-thisMonthLeads!==1?'s':'')+' para bater a meta';
+  }
+  // Payment history
+  const paidLeads=myLeads.filter(function(l){return l.status===3&&l.payment_status===1;});
+  const payEl=document.getElementById('pv-payments-list');
+  if(payEl){
+    if(!paidLeads.length){
+      payEl.innerHTML='<div style="text-align:center;padding:1rem;color:var(--w30);font-size:.78rem">Nenhuma comissão registrada ainda.</div>';
+    }else{
+      let payHtml='';
+      paidLeads.forEach(function(l){
+        const comm=Number(l.value||0)*(pct/100);
+        payHtml+='<div class="payment-row">';
+        payHtml+='<div><div style="font-weight:500">'+esc(l.name||'')+'</div><div style="font-size:.68rem;color:var(--w30);margin-top:.1rem">'+(l.payment_due||l.date||'')+'</div></div>';
+        payHtml+='<div style="color:var(--green);font-weight:600;font-size:.82rem">+'+fmtBRL(comm)+'</div>';
+        payHtml+='</div>';
+      });
+      payEl.innerHTML=payHtml;
+    }
+  }
   // Link
   const link='warejuridico.com.br/indicacao?p='+p.username;
   document.getElementById('pv-link').textContent=link;
@@ -933,6 +1012,15 @@ function showTab(name){
   const tabs=['visao','leads','parceiros'];
   const btn=document.querySelectorAll('.nav-tab')[tabs.indexOf(name)];
   if(btn)btn.classList.add('active');
+}
+
+// ── URGENT FILTER ──
+var urgentMode=false;
+function toggleUrgent(){
+  urgentMode=!urgentMode;
+  var btn=document.getElementById('btn-urgent');
+  btn.classList.toggle('active',urgentMode);
+  renderLeadsTable();
 }
 
 // ── UTILS ──
